@@ -1,109 +1,48 @@
 import streamlit as st
 import requests
-from bs4 import BeautifulSoup
-import tempfile
-import fitz  # PyMuPDF para PDFs
-import docx
+import time
 
-# -------------------------
-# Upload e extração do currículo
-# -------------------------
-def extrair_curriculo(arquivo, tipo):
-    if tipo == "Pdf":
-        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as temp:
-            temp.write(arquivo.read())
-            nome_temp = temp.name
-        texto = ""
-        with fitz.open(nome_temp) as doc:
-            for page in doc:
-                texto += page.get_text()
-        return texto
-    elif tipo == "Docx":
-        with tempfile.NamedTemporaryFile(suffix=".docx", delete=False) as temp:
-            temp.write(arquivo.read())
-            nome_temp = temp.name
-        doc = docx.Document(nome_temp)
-        return "\n".join([p.text for p in doc.paragraphs])
-    elif tipo == "Txt":
-        return arquivo.read().decode("utf-8")
-    return ""
+# Configuração do backend (Node.js API)
+API_BASE = "http://localhost:3000"  # ajuste se rodar em outro host
 
-# -------------------------
-# Scraping de vagas (exemplo: Vagas.com)
-# -------------------------
-def coletar_vagas(palavra_chave="python"):
-    url = f"https://www.vagas.com.br/vagas-de-{palavra_chave}"
-    resp = requests.get(url)
-    soup = BeautifulSoup(resp.text, "html.parser")
-    vagas = []
+st.set_page_config(page_title="Job Matcher", layout="wide")
 
-    # Atenção: seletores CSS podem mudar conforme o site
-    for vaga in soup.find_all("div", class_="vaga"):  # classe exemplo
-        titulo = vaga.find("h2").text.strip() if vaga.find("h2") else ""
-        empresa = vaga.find("span", class_="empresa").text.strip() if vaga.find("span", class_="empresa") else ""
-        link = vaga.find("a")["href"] if vaga.find("a") else ""
-        vagas.append({"titulo": titulo, "empresa": empresa, "link": link})
-    return vagas
+st.title("🔎 Job Matcher")
+st.write("Upload do seu currículo para encontrar vagas compatíveis!")
 
-# -------------------------
-# Análise de compatibilidade usando GPT/DeepSeek
-# -------------------------
-def calcula_compatibilidade(curriculo, vaga, provedor, modelo, api_key):
-    prompt = f"""
-    Analise a compatibilidade do seguinte currículo com a vaga:
+# Upload de currículo
+uploaded_file = st.file_uploader("Envie seu currículo (PDF, DOCX ou TXT)", type=["pdf", "docx", "txt"])
 
-    Currículo:
-    {curriculo}
+if uploaded_file is not None:
+    if st.button("Enviar Currículo"):
+        files = {"file": uploaded_file.getvalue()}
+        response = requests.post(f"{API_BASE}/upload", files=files)
 
-    Vaga:
-    {vaga['titulo']} - {vaga['empresa']}
+        if response.status_code == 200:
+            job_id = response.json().get("id")
+            st.success(f"Currículo enviado com sucesso! ID: {job_id}")
 
-    Avalie a compatibilidade de 0 a 100 e explique brevemente.
-    Retorne apenas o número e a explicação em formato: score: explicação
-    """
-    if provedor == "DeepSeek":
-        url = f"https://openrouter.ai/api/v1/{modelo}/completions"
-        headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
-        resp = requests.post(url, headers=headers, json={"inputs": prompt})
-        if resp.status_code == 200:
-            return resp.json()['outputs'][0]['output_text']
-    else:  # OpenAI
-        url = "https://api.openai.com/v1/chat/completions"
-        headers = {"Authorization": f"Bearer {api_key}"}
-        json_data = {
-            "model": modelo,
-            "messages": [{"role": "user", "content": prompt}],
-            "temperature": 0
-        }
-        resp = requests.post(url, headers=headers, json=json_data)
-        if resp.status_code == 200:
-            return resp.json()['choices'][0]['message']['content']
-    return "Erro na análise"
+            # Polling do status
+            with st.spinner("Processando currículo..."):
+                status = "pendente"
+                result = None
+                for _ in range(30):  # tenta por 30x (~30 segundos)
+                    status_resp = requests.get(f"{API_BASE}/status/{job_id}")
+                    if status_resp.status_code == 200:
+                        data = status_resp.json()
+                        status = data.get("status")
+                        result = data.get("resultado")
+                        if status == "concluido":
+                            break
+                    time.sleep(2)
 
-# -------------------------
-# Interface Streamlit
-# -------------------------
-st.title("💼 Recomendador de Vagas por Currículo")
-
-tipo_arquivo = st.selectbox("Tipo de currículo", ["Pdf", "Docx", "Txt"])
-arquivo = st.file_uploader("Upload do currículo", type=[tipo_arquivo.lower()])
-provedor = st.selectbox("Provedor de IA", ["DeepSeek", "OpenAI"])
-modelo = st.selectbox("Modelo", ["deepseek-r1", "deepseek-coder", "gpt-4o-mini"])
-api_key = st.text_input("API Key", type="password")
-
-if st.button("Analisar e Buscar Vagas") and arquivo is not None and api_key != "":
-    curriculo_texto = extrair_curriculo(arquivo, tipo_arquivo)
-    st.subheader("📋 Texto do Currículo")
-    st.text(curriculo_texto[:500] + "...")  # mostra parte do currículo
-
-    st.subheader("💼 Vagas Encontradas")
-    vagas = coletar_vagas("python")  # ou outra palavra-chave
-    resultados = []
-    for vaga in vagas:
-        compat = calcula_compatibilidade(curriculo_texto, vaga, provedor, modelo, api_key)
-        resultados.append({"vaga": vaga, "compat": compat})
-
-    # Mostra resultados
-    for res in resultados:
-        st.markdown(f"- **{res['vaga']['titulo']}** | {res['vaga']['empresa']} | [Link]({res['vaga']['link']})")
-        st.text(f"Compatibilidade: {res['compat']}")
+                if status == "concluido" and result:
+                    st.success("✅ Processamento concluído!")
+                    st.subheader("Vagas compatíveis:")
+                    for vaga in result:
+                        st.write(f"**{vaga['titulo']}** - {vaga['empresa']}")
+                        st.progress(vaga["compatibilidade"])
+                else:
+                    st.warning("Tempo limite atingido. Tente novamente mais tarde.")
+        else:
+            st.error("Erro ao enviar currículo. Verifique o backend.")
