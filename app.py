@@ -16,8 +16,12 @@ uploaded_file = st.file_uploader("Envie seu currículo (PDF, DOCX ou TXT)", type
 
 if uploaded_file is not None:
     if st.button("Enviar Currículo"):
-        files = {"file": uploaded_file.getvalue()}
-        response = requests.post(f"{API_BASE}/upload", files=files)
+        files = {"file": (uploaded_file.name, uploaded_file.getvalue())}
+
+        try:
+            response = requests.post(f"{API_BASE}/upload", files=files)
+        except requests.exceptions.RequestException as e:
+            st.error(f"Erro ao enviar currículo: {e}")
 
         if response.status_code == 200:
             job_id = response.json().get("id")
