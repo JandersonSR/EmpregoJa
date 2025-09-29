@@ -19,7 +19,7 @@ if uploaded_file is not None:
         files = {"file": (uploaded_file.name, uploaded_file.getvalue())}
 
         try:
-            response = requests.post(f"{API_BASE}/upload", files=files)
+            response = requests.post(f"{API_BASE}/curriculo/upload", files=files)
         except requests.exceptions.RequestException as e:
             st.error(f"Erro ao enviar currículo: {e}")
 
