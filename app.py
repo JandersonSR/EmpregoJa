@@ -1,13 +1,14 @@
 import streamlit as st
+import os
 import requests
 import time
 
 # Configuração do backend (Node.js API)
-API_BASE = "http://localhost:3000"  # ajuste se rodar em outro host
+API_BASE = os.getenv("SERVER_URL", "http://localhost:3000")  # ajuste se rodar em outro host
 
-st.set_page_config(page_title="Job Matcher", layout="wide")
+st.set_page_config(page_title="EmpregoJá", layout="wide")
 
-st.title("🔎 Job Matcher")
+st.title("🔎 EmpregoJá")
 st.write("Upload do seu currículo para encontrar vagas compatíveis!")
 
 # Upload de currículo
