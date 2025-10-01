@@ -3,7 +3,7 @@ streamlit
 
 # Chamadas HTTP
 requests
-
+load_dotenv
 # Parser e scraping
 beautifulsoup4
 lxml
