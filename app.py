@@ -6,6 +6,7 @@ import time
 
 load_dotenv()
 
+
 # 🔗 URL do backend FastAPI (Render)
 API_BASE = os.getenv("SERVER_URL", "http://localhost:3000")
 
