@@ -6,17 +6,16 @@ import time
 
 load_dotenv()
 
-
-# 🔗 URL do backend FastAPI (Render)
+# 🔗 URL do backend Express
 API_BASE = os.getenv("SERVER_URL", "http://localhost:3000")
 
-st.set_page_config(page_title="Buscador de empregos", layout="wide")
+st.set_page_config(page_title="Buscador de Empregos", layout="wide")
 
 # ==============================
 # 🏠 Cabeçalho
 # ==============================
-st.title("🔎 Buscador de empregos")
-st.write("Envie ou atualize seu currículo e veja vagas compatíveis!")
+st.title("🔎 Buscador de Empregos")
+st.write("Envie seu currículo e veja vagas compatíveis!")
 
 # ==============================
 # 📧 Campo de email
@@ -32,84 +31,81 @@ if not email:
 # ==============================
 uploaded_file = st.file_uploader("Envie seu currículo (PDF, DOCX ou TXT)", type=["pdf", "docx", "txt"])
 
-col1, col2, col3 = st.columns(3)
+col1, col2 = st.columns(2)
+
+# Função auxiliar para exibir vagas
+def exibir_vagas(vagas):
+    st.subheader("Vagas compatíveis:")
+    for vaga in vagas:
+        titulo = vaga.get("titulo", "Sem título")
+        empresa = vaga.get("empresa", "Empresa não informada")
+        compat = vaga.get("compatibilidade", 0)
+        st.markdown(f"**{titulo}** - {empresa}")
+        st.progress(min(max(compat, 0), 1))  # evita erro se compat for fora de 0–1
 
 # ==============================
-# 🚀 Enviar novo currículo
+# 🚀 Enviar / atualizar currículo
 # ==============================
 with col1:
     if uploaded_file and st.button("📤 Enviar Currículo"):
+        st.session_state["mensagem"] = None
+        st.session_state["vagas"] = None
+
         files = {"file": (uploaded_file.name, uploaded_file.getvalue())}
         data = {"email": email}
 
-        st.info("Enviando currículo para o servidor...")
-        try:
-            response = requests.post(f"{API_BASE}/curriculo/upload", files=files, data=data, timeout=60)
-            if response.status_code == 200:
-                job_id = response.json().get("id")
-                st.success(f"Currículo enviado com sucesso! ID: {job_id}")
+        with st.spinner("Enviando currículo para o servidor..."):
+            try:
+                response = requests.post(f"{API_BASE}/curriculo/upload", files=files, data=data, timeout=90)
 
-                # Polling do status
-                with st.spinner("Processando currículo..."):
-                    for _ in range(30):  # até 1 minuto (~30 * 2s)
-                        status_resp = requests.get(f"{API_BASE}/status/{job_id}")
-                        if status_resp.status_code == 200:
-                            data = status_resp.json()
-                            status = data.get("status")
-                            result = data.get("resultado")
-                            if status == "concluido":
-                                st.success("✅ Processamento concluído!")
-                                break
-                        time.sleep(2)
+                if response.status_code == 200:
+                    job_id = response.json().get("id")
+                    st.success(f"✅ Currículo enviado com sucesso! ID: {job_id}")
 
-                if result:
-                    st.subheader("Vagas compatíveis:")
-                    for vaga in result:
-                        st.markdown(f"**{vaga['titulo']}** - {vaga['empresa']}")
-                        st.progress(vaga["compatibilidade"])
+                    # Polling do status
+                    with st.spinner("⏳ Processando currículo..."):
+                        result = None
+                        for _ in range(30):  # 30 tentativas (~60s)
+                            status_resp = requests.get(f"{API_BASE}/curriculo/status/{job_id}", timeout=20)
+                            if status_resp.status_code == 200:
+                                status_data = status_resp.json()
+                                status = status_data.get("status")
+                                result = status_data.get("resultado")
+                                if status == "concluido":
+                                    break
+                            time.sleep(2)
+
+                        if result:
+                            st.success("✅ Processamento concluído!")
+                            exibir_vagas(result)
+                        else:
+                            st.warning("⚠️ Nenhum resultado encontrado ou tempo limite atingido.")
                 else:
-                    st.warning("Nenhum resultado encontrado ou tempo limite atingido.")
-            else:
-                st.error("Erro ao enviar currículo. Verifique o backend.")
-        except requests.exceptions.RequestException as e:
-            st.error(f"Erro ao enviar currículo: {e}")
+                    st.error(f"Erro ao enviar currículo. ({response.status_code})")
+
+            except requests.exceptions.RequestException as e:
+                st.error(f"❌ Erro ao enviar currículo: {e}")
 
 # ==============================
-# 🔄 Atualizar currículo
+# 🔍 Buscar vagas associadas ao e-mail
 # ==============================
 with col2:
-    if uploaded_file and st.button("♻️ Atualizar Currículo"):
-        files = {"file": (uploaded_file.name, uploaded_file.getvalue())}
-        data = {"email": email}
-        st.info("Atualizando currículo existente...")
-        try:
-            response = requests.post(f"{API_BASE}/curriculo/atualizar", files=files, data=data, timeout=60)
-            if response.status_code == 200:
-                st.success("✅ Currículo atualizado com sucesso!")
-            else:
-                st.error("Erro ao atualizar currículo.")
-        except requests.exceptions.RequestException as e:
-            st.error(f"Erro ao atualizar currículo: {e}")
+    if st.button("🔎 Buscar Vagas do Meu Currículo"):
+        st.session_state["mensagem"] = None
+        st.session_state["vagas"] = None
 
-# ==============================
-# 🔍 Buscar vagas do currículo já enviado
-# ==============================
-with col3:
-    if st.button("🔎 Buscar Vagas para meu Currículo"):
-        st.info("Buscando vagas associadas ao seu currículo...")
-        try:
-            response = requests.get(f"{API_BASE}/curriculo/vagas", params={"email": email}, timeout=60)
-            if response.status_code == 200:
-                data = response.json()
-                vagas = data.get("resultado", [])
-                if vagas:
-                    st.success(f"{len(vagas)} vagas encontradas:")
-                    for vaga in vagas:
-                        st.markdown(f"**{vaga['titulo']}** - {vaga['empresa']}")
-                        st.progress(vaga["compatibilidade"])
+        with st.spinner("Buscando vagas associadas..."):
+            try:
+                response = requests.get(f"{API_BASE}/curriculo/vagas", params={"email": email}, timeout=60)
+                if response.status_code == 200:
+                    data = response.json()
+                    vagas = data.get("resultado", [])
+                    if vagas:
+                        st.success(f"{len(vagas)} vagas encontradas:")
+                        exibir_vagas(vagas)
+                    else:
+                        st.warning("Nenhuma vaga encontrada ainda. Aguarde o processamento.")
                 else:
-                    st.warning("Nenhuma vaga encontrada ainda. Aguarde o processamento.")
-            else:
-                st.error("Erro ao buscar vagas. Verifique o backend.")
-        except requests.exceptions.RequestException as e:
-            st.error(f"Erro de conexão: {e}")
+                    st.error(f"Erro ao buscar vagas. ({response.status_code})")
+            except requests.exceptions.RequestException as e:
+                st.error(f"❌ Erro de conexão: {e}")
