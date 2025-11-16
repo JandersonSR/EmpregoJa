@@ -47,63 +47,49 @@ def grafico_vaga(vaga):
 import streamlit as st
 
 def exibir_vagas(vagas):
+    if not vagas:
+        st.info("Nenhuma vaga encontrada.")
+        return
+
     st.subheader("🔎 Vagas encontradas")
 
-    # Organizar em pares
+    # Organizar em pares de colunas
     for i in range(0, len(vagas), 2):
         col1, col2 = st.columns(2)
 
-        # -------- CARD 1 --------
-        with col1:
-            if i < len(vagas):
-                _exibir_card_vaga(vagas[i])
+        if i < len(vagas):
+            _exibir_card_vaga(vagas[i], col1)
 
-        # -------- CARD 2 --------
-        with col2:
-            if i + 1 < len(vagas):
-                _exibir_card_vaga(vagas[i+1])
+        if i + 1 < len(vagas):
+            _exibir_card_vaga(vagas[i+1], col2)
 
 
-def _exibir_card_vaga(vaga):
+def _exibir_card_vaga(vaga, coluna):
     titulo = vaga.get("titulo", "Sem título")
     empresa = vaga.get("empresa", "Não informada")
     compat = float(vaga.get("compatibilidade", 0))
-
     requisitos_atendidos = vaga.get("requisitos_atendidos", [])
-    requisitos_faltantes = vaga.get("requisitos_nao_atendidos", [])
+    requisitos_nao_atendidos = vaga.get("requisitos_nao_atendidos", [])
     sugestoes = vaga.get("melhorias_sugeridas", [])
     link = vaga.get("url", "#")
 
-    with st.container(border=True):
-
-        # -------------------------------
-        # Cabeçalho do card
-        # -------------------------------
+    with coluna:
         st.markdown(f"### {titulo}")
         st.markdown(f"**{empresa}**")
 
-        # -------------------------------
         # Barra de compatibilidade
-        # -------------------------------
-        st.markdown("#### Compatibilidade:")
         st.markdown(
             f"""
-            <div style='background:#e6e6e6;border-radius:8px;height:16px;width:100%;'>
-                <div style='width:{compat*100}%;background:#0078ff;height:16px;border-radius:8px;'>
-                </div>
+            <div style='background:#eee;border-radius:8px;height:16px;width:100%;'>
+                <div style='width:{compat*100}%;background:#0078ff;height:16px;border-radius:8px;'></div>
             </div>
-            <p style='margin-top:5px;font-size:14px;'>
-                <b>{round(compat*100, 1)}%</b>
-            </p>
+            <p style='margin-top:5px;font-size:14px;'><b>{round(compat*100, 1)}%</b></p>
             """,
             unsafe_allow_html=True
         )
 
-        # -------------------------------
-        # Expansores lado a lado
-        # -------------------------------
+        # Requisitos atendidos / não atendidos
         colA, colB = st.columns(2)
-
         with colA:
             with st.expander("✔ Atendidos"):
                 if requisitos_atendidos:
@@ -111,93 +97,25 @@ def _exibir_card_vaga(vaga):
                         st.markdown(f"🟢 {r}")
                 else:
                     st.markdown("—")
-
         with colB:
             with st.expander("❌ Não atendidos"):
-                if requisitos_faltantes:
-                    for r in requisitos_faltantes:
+                if requisitos_nao_atendidos:
+                    for r in requisitos_nao_atendidos:
                         st.markdown(f"🔴 {r}")
                 else:
                     st.markdown("—")
 
-        # -------------------------------
-        # Sugestões de melhoria
-        # -------------------------------
+        # Sugestões
         if sugestoes:
             with st.expander("✨ Sugestões"):
                 for s in sugestoes:
                     st.markdown(f"- {s}")
 
-        # -------------------------------
         # Link
-        # -------------------------------
-        if link and link != "#":
-            st.markdown(f"🔗 **[Acessar vaga]({link})**")
+        if link != "#":
+            st.markdown(f"🔗 [Acessar vaga]({link})")
 
-    st.subheader("🔎 Vagas encontradas")
 
-    for vaga in vagas:
-
-        titulo = vaga.get("titulo", "Sem título")
-        empresa = vaga.get("empresa", "Não informada")
-        compat = float(vaga.get("compatibilidade", 0))
-
-        requisitos_atendidos = vaga.get("requisitos_atendidos", [])
-        requisitos_nao_atendidos = vaga.get("requisitos_nao_atendidos", [])
-        sugestoes = vaga.get("sugestoes_melhoria", [])
-        link = vaga.get("url", "#")
-
-        # ------------------------------------------------------------
-        # CARD COMPACTO
-        # ------------------------------------------------------------
-        with st.container(border=True):  # card compacto e elegante
-            st.markdown(f"### **{titulo}**")
-            st.markdown(f"**{empresa}**")
-
-            # Barra horizontal MUITO mais bonita
-            st.markdown("#### Compatibilidade:")
-            st.markdown(
-                f"""
-                <div style='background:#eee;border-radius:8px;height:18px;'>
-                    <div style='width:{compat*100}%;background:#0077cc;height:18px;border-radius:8px;'>
-                    </div>
-                </div>
-                <p style='margin-top:5px;font-size:14px;'>
-                    <b>{round(compat*100, 1)}%</b>
-                </p>
-                """,
-                unsafe_allow_html=True
-            )
-
-            # ------------------------------------------------------------
-            # EXPANSORES COMPACTOS
-            # ------------------------------------------------------------
-            col1, col2 = st.columns(2)
-
-            with col1:
-                with st.expander("✔ Atendidos"):
-                    if requisitos_atendidos:
-                        for r in requisitos_atendidos:
-                            st.markdown(f"🟢 {r}")
-                    else:
-                        st.markdown("Nenhum requisito atendido.")
-
-            with col2:
-                with st.expander("❌ Não atendidos"):
-                    if requisitos_nao_atendidos:
-                        for r in requisitos_nao_atendidos:
-                            st.markdown(f"🔴 {r}")
-                    else:
-                        st.markdown("Nenhum requisito faltante.")
-
-            # Sugestões de melhoria (expandido apenas se houver)
-            if sugestoes:
-                with st.expander("✨ Sugestões de melhoria"):
-                    for s in sugestoes:
-                        st.markdown(f"- {s}")
-
-            if link and link != "#":
-                st.markdown(f"🔗 **[Link da vaga]({link})**")
 # =============================================================================
 # UPLOAD DO CURRÍCULO
 # =============================================================================
