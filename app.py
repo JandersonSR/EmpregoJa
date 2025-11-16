@@ -1,111 +1,363 @@
 import streamlit as st
+
 from dotenv import load_dotenv
+import matplotlib.pyplot as plt
+import numpy as np
 import os
 import requests
 import time
 
 load_dotenv()
 
-# 🔗 URL do backend Express
 API_BASE = os.getenv("SERVER_URL", "http://localhost:3000")
 
 st.set_page_config(page_title="Buscador de Empregos", layout="wide")
 
-# ==============================
-# 🏠 Cabeçalho
-# ==============================
 st.title("🔎 Buscador de Empregos")
-st.write("Envie seu currículo e veja vagas compatíveis!")
-
-# ==============================
-# 📧 Campo de email
-# ==============================
+st.write("Envie seu currículo e compare com vagas usando diferentes métodos de IA.")
+st_duration = 4
+# =============================================================================
+# EMAIL
+# =============================================================================
 email = st.text_input("Digite seu e-mail:", placeholder="exemplo@email.com")
 
 if not email:
     st.warning("⚠️ Por favor, insira um e-mail para continuar.")
     st.stop()
 
-# ==============================
-# 📂 Upload de currículo
-# ==============================
+# =============================================================================
+# CURRÍCULO
+# =============================================================================
 uploaded_file = st.file_uploader("Envie seu currículo (PDF, DOCX ou TXT)", type=["pdf", "docx", "txt"])
 
-col1, col2 = st.columns(2)
+def grafico_vaga(vaga):
+    atendidos = len(vaga["requisitos_atendidos"])
+    nao_atendidos = len(vaga["requisitos_nao_atendidos"])
 
-# Função auxiliar para exibir vagas
+    fig, ax = plt.subplots(figsize=(4, 2.5))
+    ax.bar(["Atendidos", "Não atendidos"], [atendidos, nao_atendidos])
+    ax.set_title("Resumo dos Requisitos")
+    ax.set_ylabel("Quantidade")
+
+    st.pyplot(fig)
+
+# ------------------------------------------------------------
+# FUNÇÃO — EXIBIR VAGAS COM RADAR, EXPANDERS E COLUNAS
+# ------------------------------------------------------------
+import streamlit as st
+
 def exibir_vagas(vagas):
-    st.subheader("Vagas compatíveis:")
+    st.subheader("🔎 Vagas encontradas")
+
+    # Organizar em pares
+    for i in range(0, len(vagas), 2):
+        col1, col2 = st.columns(2)
+
+        # -------- CARD 1 --------
+        with col1:
+            if i < len(vagas):
+                _exibir_card_vaga(vagas[i])
+
+        # -------- CARD 2 --------
+        with col2:
+            if i + 1 < len(vagas):
+                _exibir_card_vaga(vagas[i+1])
+
+
+def _exibir_card_vaga(vaga):
+    titulo = vaga.get("titulo", "Sem título")
+    empresa = vaga.get("empresa", "Não informada")
+    compat = float(vaga.get("compatibilidade", 0))
+
+    requisitos_atendidos = vaga.get("requisitos_atendidos", [])
+    requisitos_faltantes = vaga.get("requisitos_nao_atendidos", [])
+    sugestoes = vaga.get("melhorias_sugeridas", [])
+    link = vaga.get("url", "#")
+
+    with st.container(border=True):
+
+        # -------------------------------
+        # Cabeçalho do card
+        # -------------------------------
+        st.markdown(f"### {titulo}")
+        st.markdown(f"**{empresa}**")
+
+        # -------------------------------
+        # Barra de compatibilidade
+        # -------------------------------
+        st.markdown("#### Compatibilidade:")
+        st.markdown(
+            f"""
+            <div style='background:#e6e6e6;border-radius:8px;height:16px;width:100%;'>
+                <div style='width:{compat*100}%;background:#0078ff;height:16px;border-radius:8px;'>
+                </div>
+            </div>
+            <p style='margin-top:5px;font-size:14px;'>
+                <b>{round(compat*100, 1)}%</b>
+            </p>
+            """,
+            unsafe_allow_html=True
+        )
+
+        # -------------------------------
+        # Expansores lado a lado
+        # -------------------------------
+        colA, colB = st.columns(2)
+
+        with colA:
+            with st.expander("✔ Atendidos"):
+                if requisitos_atendidos:
+                    for r in requisitos_atendidos:
+                        st.markdown(f"🟢 {r}")
+                else:
+                    st.markdown("—")
+
+        with colB:
+            with st.expander("❌ Não atendidos"):
+                if requisitos_faltantes:
+                    for r in requisitos_faltantes:
+                        st.markdown(f"🔴 {r}")
+                else:
+                    st.markdown("—")
+
+        # -------------------------------
+        # Sugestões de melhoria
+        # -------------------------------
+        if sugestoes:
+            with st.expander("✨ Sugestões"):
+                for s in sugestoes:
+                    st.markdown(f"- {s}")
+
+        # -------------------------------
+        # Link
+        # -------------------------------
+        if link and link != "#":
+            st.markdown(f"🔗 **[Acessar vaga]({link})**")
+
+    st.subheader("🔎 Vagas encontradas")
+
     for vaga in vagas:
+
         titulo = vaga.get("titulo", "Sem título")
-        empresa = vaga.get("empresa", "Empresa não informada")
-        compat = vaga.get("compatibilidade", 0)
-        st.markdown(f"**{titulo}** - {empresa}")
-        st.progress(min(max(compat, 0), 1))  # evita erro se compat for fora de 0–1
+        empresa = vaga.get("empresa", "Não informada")
+        compat = float(vaga.get("compatibilidade", 0))
 
-# ==============================
-# 🚀 Enviar / atualizar currículo
-# ==============================
-with col1:
-    if uploaded_file and st.button("📤 Enviar Currículo"):
-        st.session_state["mensagem"] = None
-        st.session_state["vagas"] = None
+        requisitos_atendidos = vaga.get("requisitos_atendidos", [])
+        requisitos_nao_atendidos = vaga.get("requisitos_nao_atendidos", [])
+        sugestoes = vaga.get("sugestoes_melhoria", [])
+        link = vaga.get("url", "#")
 
-        files = {"file": (uploaded_file.name, uploaded_file.getvalue())}
-        data = {"email": email}
+        # ------------------------------------------------------------
+        # CARD COMPACTO
+        # ------------------------------------------------------------
+        with st.container(border=True):  # card compacto e elegante
+            st.markdown(f"### **{titulo}**")
+            st.markdown(f"**{empresa}**")
 
-        with st.spinner("Enviando currículo para o servidor..."):
-            try:
-                response = requests.post(f"{API_BASE}/curriculo/upload", files=files, data=data, timeout=90)
+            # Barra horizontal MUITO mais bonita
+            st.markdown("#### Compatibilidade:")
+            st.markdown(
+                f"""
+                <div style='background:#eee;border-radius:8px;height:18px;'>
+                    <div style='width:{compat*100}%;background:#0077cc;height:18px;border-radius:8px;'>
+                    </div>
+                </div>
+                <p style='margin-top:5px;font-size:14px;'>
+                    <b>{round(compat*100, 1)}%</b>
+                </p>
+                """,
+                unsafe_allow_html=True
+            )
 
-                if response.status_code == 200:
-                    job_id = response.json().get("id")
-                    st.success(f"✅ Currículo enviado com sucesso! ID: {job_id}")
+            # ------------------------------------------------------------
+            # EXPANSORES COMPACTOS
+            # ------------------------------------------------------------
+            col1, col2 = st.columns(2)
 
-                    # Polling do status
-                    with st.spinner("⏳ Processando currículo..."):
-                        result = None
-                        for _ in range(30):  # 30 tentativas (~60s)
-                            status_resp = requests.get(f"{API_BASE}/curriculo/status/{job_id}", timeout=20)
-                            if status_resp.status_code == 200:
-                                status_data = status_resp.json()
-                                status = status_data.get("status")
-                                result = status_data.get("resultado")
-                                if status == "concluido":
-                                    break
-                            time.sleep(2)
-
-                        if result:
-                            st.success("✅ Processamento concluído!")
-                            exibir_vagas(result)
-                        else:
-                            st.warning("⚠️ Nenhum resultado encontrado ou tempo limite atingido.")
-                else:
-                    st.error(f"Erro ao enviar currículo. ({response.status_code})")
-
-            except requests.exceptions.RequestException as e:
-                st.error(f"❌ Erro ao enviar currículo: {e}")
-
-# ==============================
-# 🔍 Buscar vagas associadas ao e-mail
-# ==============================
-with col2:
-    if st.button("🔎 Buscar Vagas do Meu Currículo"):
-        st.session_state["mensagem"] = None
-        st.session_state["vagas"] = None
-
-        with st.spinner("Buscando vagas associadas..."):
-            try:
-                response = requests.get(f"{API_BASE}/curriculo/vagas", params={"email": email}, timeout=60)
-                if response.status_code == 200:
-                    data = response.json()
-                    vagas = data.get("resultado", [])
-                    if vagas:
-                        st.success(f"{len(vagas)} vagas encontradas:")
-                        exibir_vagas(vagas)
+            with col1:
+                with st.expander("✔ Atendidos"):
+                    if requisitos_atendidos:
+                        for r in requisitos_atendidos:
+                            st.markdown(f"🟢 {r}")
                     else:
-                        st.warning("Nenhuma vaga encontrada ainda. Aguarde o processamento.")
+                        st.markdown("Nenhum requisito atendido.")
+
+            with col2:
+                with st.expander("❌ Não atendidos"):
+                    if requisitos_nao_atendidos:
+                        for r in requisitos_nao_atendidos:
+                            st.markdown(f"🔴 {r}")
+                    else:
+                        st.markdown("Nenhum requisito faltante.")
+
+            # Sugestões de melhoria (expandido apenas se houver)
+            if sugestoes:
+                with st.expander("✨ Sugestões de melhoria"):
+                    for s in sugestoes:
+                        st.markdown(f"- {s}")
+
+            if link and link != "#":
+                st.markdown(f"🔗 **[Link da vaga]({link})**")
+# =============================================================================
+# UPLOAD DO CURRÍCULO
+# =============================================================================
+if uploaded_file and st.button("📤 Enviar Currículo"):
+    files = {"file": (uploaded_file.name, uploaded_file.getvalue())}
+    data = {"email": email}
+
+    try:
+        with st.spinner("Enviando currículo..."):
+            resp = requests.post(f"{API_BASE}/curriculo/upload", files=files, data=data, timeout=90)
+
+        if resp.status_code != 200:
+            # st.error("Erro ao enviar currículo.", icon="🚨")
+            st.toast("❌ Falha no envio do currículo", icon="🚨", duration=st_duration)
+            st.stop()
+
+        # st.success("Currículo enviado com sucesso!")
+        st.toast("📤 Currículo enviado!", duration=st_duration)
+
+        # Polling do status
+        with st.spinner("🔄 Processando currículo..."):
+            result = None
+            for _ in range(25):
+                status_resp = requests.get(f"{API_BASE}/curriculo/status/{email}", timeout=20)
+                if status_resp.status_code == 200:
+                    status_data = status_resp.json()
+                    if status_data.get("status") == "concluido":
+                        result = status_data.get("resultado")
+                        break
+                time.sleep(2)
+
+        if result:
+            # st.success("Processamento concluído!")
+            st.toast("🎉 Processamento concluído!", duration=st_duration)
+            exibir_vagas(result)
+        else:
+            # st.warning("⚠️ Tempo limite atingido. Tente novamente.")
+            st.toast("⏳ Tempo limite atingido", icon="⚠️", duration=st_duration)
+
+    except Exception as e:
+        # st.error("Erro ao se comunicar com o servidor.", icon="🚨")
+        st.toast(f"❌ Erro: {str(e)}", icon="🚨", duration=st_duration)
+# =============================================================================
+# BOTÕES DE COMPARAÇÃO
+# =============================================================================
+
+st.header("Comparação de vagas")
+
+colE, colL, colM = st.columns(3)
+
+# Comparar por Embeddings
+with colE:
+    if st.button("🧠 Comparar por Embeddings"):
+        try:
+            with st.spinner("Comparando via embeddings..."):
+                resp = requests.get(
+                    f"{API_BASE}/curriculo/comparar/embeddings",
+                    params={"email": email},
+                    timeout=60
+                )
+
+            if resp.status_code != 200:
+                # st.error("Erro ao comparar.", icon="🚨")
+                st.toast("❌ Falha ao comparar via embeddings", icon="🚨", duration=st_duration)
+            else:
+                vagas = resp.json().get("resultado", [])
+                if vagas:
+                    st.success("Comparação por embeddings concluída!")
+                    st.toast("🎯 Feito!")
+                    exibir_vagas(vagas)
                 else:
-                    st.error(f"Erro ao buscar vagas. ({response.status_code})")
-            except requests.exceptions.RequestException as e:
-                st.error(f"❌ Erro de conexão: {e}")
+                    # st.warning("Nenhuma vaga encontrada.")
+                    st.toast("Nenhuma vaga encontrada", icon="ℹ️", duration=st_duration)
+
+        except Exception as e:
+            # st.error("Erro na comparação via embeddings.", icon="🚨")
+            st.toast(f"❌ Erro: {str(e)}", icon="🚨", duration=st_duration)
+
+# Comparar por LLM
+with colL:
+    if st.button("🤖 Comparar por LLM (HuggingFace)"):
+        try:
+            with st.spinner("Chamando LLM para análise..."):
+                resp = requests.get(
+                    f"{API_BASE}/curriculo/comparar/llm",
+                    params={"email": email},
+                    timeout=90
+                )
+
+            if resp.status_code != 200:
+                # st.error("Erro ao comparar via LLM.", icon="🚨")
+                st.toast("❌ Erro na API LLM", icon="🚨", duration=st_duration)
+            else:
+                vagas = resp.json().get("resultado", [])
+                if vagas:
+                    # st.success("Comparação com LLM concluída!")
+                    st.toast("✨ Análise concluída!", duration=st_duration)
+                    exibir_vagas(vagas)
+                else:
+                    # st.warning("Nenhuma vaga encontrada.")
+                    st.toast("ℹ️ Nenhuma vaga encontrada", duration=st_duration)
+
+        except Exception as e:
+            # st.error("Erro ao chamar LLM.", icon="🚨")
+            st.toast(f"❌ Erro: {str(e)}", icon="🚨", duration=st_duration)
+
+# Comparar modo misto
+with colM:
+    if st.button("⚡ Comparar Embeddings + LLM (Misto)"):
+        try:
+            with st.spinner("Executando pipeline híbrido..."):
+                resp = requests.get(
+                    f"{API_BASE}/curriculo/comparar/misto",
+                    params={"email": email},
+                    timeout=90
+                )
+
+            if resp.status_code != 200:
+                # st.error("Erro na análise híbrida.", icon="🚨")
+                st.toast("❌ Erro ao comparar no modo misto", icon="🚨", duration=st_duration)
+            else:
+                vagas = resp.json().get("resultado", [])
+                if vagas:
+                    # st.success("Comparação híbrida concluída!")
+                    st.toast("🚀 Pipeline finalizado!", duration=st_duration)
+                    exibir_vagas(vagas)
+                else:
+                    # st.warning("Nenhuma vaga encontrada.")
+                    st.toast("ℹ️ Nenhuma vaga encontrada", icon="ℹ️", duration=st_duration)
+        except Exception as e:
+            # st.error("Erro no modo misto.", icon="🚨")
+            st.toast(f"❌ Erro: {str(e)}", icon="🚨", duration=st_duration)
+
+# =============================================================================
+# BUSCAR RESULTADOS EXISTENTES
+# =============================================================================
+
+if st.button("🔎 Buscar Vagas Já Processadas"):
+    try:
+        with st.spinner("Buscando vagas..."):
+            resp = requests.get(
+                f"{API_BASE}/curriculo/vagas",
+                params={"email": email},
+                timeout=60
+            )
+
+        if resp.status_code != 200:
+            # st.error("Erro ao buscar vagas.", icon="🚨")
+            st.toast("❌ Erro ao buscar vagas", icon="🚨", duration=st_duration)
+        else:
+            body = resp.json()
+            vagas = body.get("data", {}).get("resultado", [])
+            if vagas:
+                # st.success("Vagas encontradas!")
+                st.toast("📌 Vagas carregadas!", duration=st_duration)
+                exibir_vagas(vagas)
+            else:
+                # st.warning("Nenhuma vaga encontrada.")
+                st.toast("ℹ️ Nenhuma vaga encontrada", icon="ℹ️", duration=st_duration)
+
+    except Exception as e:
+        # st.error("Erro de conexão.", icon="🚨")
+        st.toast(f"❌ Erro: {str(e)}", icon="🚨", duration=st_duration)

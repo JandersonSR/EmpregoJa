@@ -1,6 +1,9 @@
 # Web front-end
 streamlit
 
+matplotlib
+numpy
+
 # Chamadas HTTP
 requests
 load_dotenv
