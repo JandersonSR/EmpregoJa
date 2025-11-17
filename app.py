@@ -196,7 +196,7 @@ with colE:
 
 # LLM
 with colL:
-    if st.button("🤖 Comparar por LLM (HuggingFace)"):
+    if st.button("🤖 Comparar por LLM"):
         try:
             with st.spinner("Chamando LLM para análise..."):
                 resp = requests.get(
