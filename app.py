@@ -33,10 +33,6 @@ if not email:
 if "vagas" not in st.session_state:
     st.session_state.vagas = []
 
-# container para evitar múltiplas renderizações
-vagas_container = st.container()
-
-
 # ============================
 # CURRÍCULO
 # ============================
@@ -275,5 +271,9 @@ if st.button("🔎 Buscar Vagas Já Processadas"):
 # ============================
 # RENDERIZAÇÃO FINAL ÚNICA
 # ============================
+# container para evitar múltiplas renderizações
+vagas_container = st.container()
+
+
 with vagas_container:
     exibir_vagas(st.session_state.vagas)
