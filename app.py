@@ -45,9 +45,17 @@ with coluna3:
         try:
             r = requests.get(f"{API_BASE_AI}/api/restart_llm", timeout=5)
             if r.status_code == 200:
-                st.toast("Serviço reiniciado com sucesso!", duration=st_duration)
+                st.toast("Serviço ativo!", duration=st_duration)
         except Exception as e:
-            st.toast("Tente novamente, dentro de alguns segundos!", duration=st_duration)
+            st.toast("Serviço offline! Tente novamente, dentro de alguns segundos.", duration=st_duration)
+
+        try:
+            ra = requests.get(f"{API_BASE}/status", timeout=5)
+            if ra.status_code == 200:
+                st.toast("Servidor principal ativo!", duration=st_duration)
+        except Exception as e:
+            st.toast("Servidor principal offline! Tente novamente, dentro de alguns segundos.", duration=st_duration)
+
 
 # ============================
 # EMAIL
