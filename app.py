@@ -12,6 +12,8 @@ load_dotenv()
 API_BASE = os.getenv("SERVER_URL", "http://localhost:3000")
 API_BASE_AI = os.getenv("SERVER_URL_AI", "http://localhost:4000")
 
+st_duration = 4
+
 st.set_page_config(page_title="Buscador de Empregos", layout="wide")
 
 # ============================
@@ -43,11 +45,9 @@ with coluna3:
         try:
             r = requests.get(f"{API_BASE_AI}/api/restart_llm", timeout=5)
             if r.status_code == 200:
-                st.success("Serviço reiniciado com sucesso!")
+                st.toast("Serviço reiniciado com sucesso!", duration=st_duration)
         except Exception as e:
-            st.info("Tente novamente, dentro de alguns segundos!")
-
-st_duration = 4
+            st.toast("Tente novamente, dentro de alguns segundos!", duration=st_duration)
 
 # ============================
 # EMAIL
