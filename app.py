@@ -10,11 +10,42 @@ import time
 load_dotenv()
 
 API_BASE = os.getenv("SERVER_URL", "http://localhost:3000")
+API_BASE_AI = os.getenv("SERVER_URL_AI", "http://localhost:4000")
 
 st.set_page_config(page_title="Buscador de Empregos", layout="wide")
 
-st.title("🔎 Buscador de Empregos")
-st.write("Envie seu currículo e compare com vagas usando diferentes métodos de IA.")
+# ============================
+# ESTILIZAÇÃO DO TOPO
+# PARA BOTÃO DE REINICIAR SERVIÇO LLM
+# ============================
+# --- CSS para diminuir tamanho do texto e botão ---
+st.markdown("""
+    <style>
+        .top-small-text {
+            font-size: 0.9rem !important;
+            font-weight: 600;
+        }
+        div.stButton > button {
+            padding: 2px 10px !important;
+            font-size: 0.8rem !important;
+            border-radius: 6px !important;
+        }
+    </style>
+""", unsafe_allow_html=True)
+
+# --- Linha com 3 colunas: vazio | vazio | texto + botão ---
+coluna1, coluna2, coluna3 = st.columns([6, 2, 2])   # Ajuste a proporção se quiser
+
+with coluna3:
+    st.markdown('<span class="top-small-text">🔧 Reiniciar Serviço LLM</span>', unsafe_allow_html=True)
+
+    if st.button("Reiniciar"):
+        try:
+            r = requests.get(f"{API_BASE_AI}/api/restart_llm", timeout=5)
+            if r.status_code == 200:
+                st.success("Serviço reiniciado com sucesso!")
+        except Exception as e:
+            st.info("Tente novamente, dentro de alguns segundos!")
 
 st_duration = 4
 
@@ -266,7 +297,6 @@ if st.button("🔎 Buscar Vagas Já Processadas"):
 
     except Exception as e:
         st.toast(f"❌ Erro: {str(e)}", icon="🚨", duration=st_duration)
-
 
 # ============================
 # RENDERIZAÇÃO FINAL ÚNICA
