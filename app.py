@@ -95,7 +95,7 @@ def grafico_vaga(vaga):
 
 def exibir_vagas(vagas):
     if not vagas:
-        st.info("Nenhuma vaga encontrada.")
+        st.info("Clique em buscar vagas já processadas.")
         return
 
     st.subheader("🔎 Vagas encontradas")
@@ -223,7 +223,7 @@ with colE:
                     st.toast("🎯 Feito!")
                     st.session_state.vagas = vagas
                 else:
-                    st.toast("Nenhuma vaga encontrada", icon="ℹ️", duration=st_duration)
+                    st.toast("Clique em buscar vagas já processadas", icon="ℹ️", duration=st_duration)
 
         except Exception as e:
             st.toast(f"❌ Erro: {str(e)}", icon="🚨", duration=st_duration)
@@ -248,7 +248,7 @@ with colL:
                     st.toast("✨ Análise concluída!", duration=st_duration)
                     st.session_state.vagas = vagas
                 else:
-                    st.toast("ℹ️ Nenhuma vaga encontrada", duration=st_duration)
+                    st.toast("ℹ️ Clique em buscar vagas já processadas", duration=st_duration)
 
         except Exception as e:
             st.toast(f"❌ Erro: {str(e)}", icon="🚨", duration=st_duration)
@@ -273,7 +273,7 @@ with colM:
                     st.toast("🚀 Pipeline finalizado!", duration=st_duration)
                     st.session_state.vagas = vagas
                 else:
-                    st.toast("ℹ️ Nenhuma vaga encontrada", icon="ℹ️", duration=st_duration)
+                    st.toast("ℹ️ Clique em buscar vagas já processadas", icon="ℹ️", duration=st_duration)
 
         except Exception as e:
             st.toast(f"❌ Erro: {str(e)}", icon="🚨", duration=st_duration)
@@ -301,7 +301,7 @@ if st.button("🔎 Buscar Vagas Já Processadas"):
                 st.toast("📌 Vagas carregadas!", duration=st_duration)
                 st.session_state.vagas = vagas
             else:
-                st.toast("ℹ️ Nenhuma vaga encontrada", icon="ℹ️", duration=st_duration)
+                st.toast("ℹ️ Clique em buscar vagas já processadas", icon="ℹ️", duration=st_duration)
 
     except Exception as e:
         st.toast(f"❌ Erro: {str(e)}", icon="🚨", duration=st_duration)
