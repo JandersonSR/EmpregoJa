@@ -36,25 +36,25 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # --- Linha com 3 colunas: vazio | vazio | texto + botão ---
-coluna1, coluna2, coluna3 = st.columns([6, 2, 2])   # Ajuste a proporção se quiser
+# coluna1, coluna2, coluna3 = st.columns([6, 2, 2])   # Ajuste a proporção se quiser
 
-with coluna3:
-    st.markdown('<span class="top-small-text">🔧 Reiniciar Serviço LLM</span>', unsafe_allow_html=True)
+# with coluna3:
+#     st.markdown('<span class="top-small-text">🔧 Reiniciar Serviço LLM</span>', unsafe_allow_html=True)
 
-    if st.button("Reiniciar"):
-        try:
-            r = requests.get(f"{API_BASE_AI}/api/restart_llm", timeout=5)
-            if r.status_code == 200:
-                st.toast("Serviço ativo!", duration=st_duration)
-        except Exception as e:
-            st.toast("Serviço offline! Tente novamente, dentro de alguns segundos.", duration=st_duration)
+#     if st.button("Reiniciar"):
+#         try:
+#             r = requests.get(f"{API_BASE_AI}/api/restart_llm", timeout=5)
+#             if r.status_code == 200:
+#                 st.toast("Serviço ativo!", duration=st_duration)
+#         except Exception as e:
+#             st.toast("Serviço offline! Tente novamente, dentro de alguns segundos.", duration=st_duration)
 
-        try:
-            ra = requests.get(f"{API_BASE}/status", timeout=5)
-            if ra.status_code == 200:
-                st.toast("Servidor principal ativo!", duration=st_duration)
-        except Exception as e:
-            st.toast("Servidor principal offline! Tente novamente, dentro de alguns segundos.", duration=st_duration)
+#         try:
+#             ra = requests.get(f"{API_BASE}/status", timeout=5)
+#             if ra.status_code == 200:
+#                 st.toast("Servidor principal ativo!", duration=st_duration)
+#         except Exception as e:
+#             st.toast("Servidor principal offline! Tente novamente, dentro de alguns segundos.", duration=st_duration)
 
 
 # ============================
